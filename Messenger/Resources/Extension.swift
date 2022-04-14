@@ -34,3 +34,8 @@ extension UIView {
         return self.frame.size.width + self.frame.origin.x
     }
 }
+
+//for google sign in
+extension Notification.Name {
+    static let didLogInNotification = Notification.Name("didLogInNotification")
+}

@@ -10,7 +10,7 @@ import FirebaseAuth
 import FBSDKLoginKit
 import GoogleSignIn
 
-class LoginViewController: UIViewController {
+class LoginViewController: UIViewController, GIDSignInUIDelegate {
     
     private let scrollView: UIScrollView = {
        let scrollView = UIScrollView()
@@ -79,12 +79,27 @@ class LoginViewController: UIViewController {
     }()
     
     private let googleLogInButton = GIDSignInButton()
+    
+    private var loginObserver: NSObjectProtocol?
 
     override func viewDidLoad() {
         super.viewDidLoad()
         
+        //because google sign in is created in app delegate, we need to create a notification observer
+        //assign to a discardable result
+        //didLogInNotification got from extension
+        loginObserver = NotificationCenter.default.addObserver(forName: .didLogInNotification, object: nil, queue: .main, using: { [weak self] _ in
+            //passing the notication inside of here (callback)
+            guard let strongSelf = self else {
+                return
+            }
+            
+            strongSelf.navigationController?.dismiss(animated: true, completion: nil)
+        })
+        
         //we want the google sign in button with an outlet or programmatically; so need to specify below
-        GIDSIgnIn.sharedInstance()?.presentingViewController = self
+        //GIDSIgnIn.sharedInstance()?.presentingViewController = self
+        GIDSignIn.sharedInstance()?.uiDelegate = self
         
         title = "Log In"
         view.backgroundColor = .white
@@ -111,6 +126,15 @@ class LoginViewController: UIViewController {
         scrollView.addSubview(loginButton)
         //copied from facebook
         scrollView.addSubview(facebookLoginButton)
+        //google sign in
+        scrollView.addSubview(googleLogInButton)
+    }
+    
+    //for google sign in
+    deinit {
+        if let observer = loginObserver {
+            NotificationCenter.default.removeObserver(observer)
+        }
     }
     
     override func viewDidLayoutSubviews() {
@@ -128,7 +152,8 @@ class LoginViewController: UIViewController {
         
         facebookLoginButton.frame = CGRect(x: 30, y: loginButton.bottom+100, width: scrollView.width-60, height: 52)
         
-        facebookLoginButton.frame.origin.y = loginButton.bottom+20
+        googleLogInButton.frame = CGRect(x: 30, y: facebookLoginButton.bottom+100, width: scrollView.width-60, height: 52)
+        
     }
     
     @objc private func loginButtonTapped() {

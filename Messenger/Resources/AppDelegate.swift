@@ -49,6 +49,7 @@ func application(
     return GIDSignIn.sharedInstance().handle(url,sourceApplication:options[UIApplication.OpenURLOptionsKey.sourceApplication] as? String,annotation: [:])
 }
     
+    //google sign in
     func sign(_ signIn: GIDSignIn!, didSignInFor user: GIDGoogleUser!, withError error: Error!) {
         //first make sure there is no error
         guard error == nil else {
@@ -59,8 +60,41 @@ func application(
             return
         }
         
-        guard let authentication = user.authentication else {return}
+        //unwrap user
+        guard let user = user else {
+            return
+        }
+        
+        print("Did sign in with Google: \(user)")
+        
+        guard let email = user.profile.email,
+              let firstName = user.profile.givenName,
+              let lastName = user.profile.familyName else {
+            return
+        }
+        //let email = user.profile.email //wrong practice wo unwrap
+        
+        DatabaseManager.shared.userExists(with: email, completion: {exists in
+            if !exists {
+                //insert to database
+                DatabaseManager.shared.insertUser(with: ChatAppUser(firstName: firstName, lastName: lastName, emailAddress: email))
+            }
+        })
+        guard let authentication = user.authentication else {
+            print("Missing auth object off of google user")
+            return
+        }
         let credential = GoogleAuthProvider.credential(withIDToken: authentication.idToken, accessToken: authentication.accessToken)
+        
+        FirebaseAuth.Auth.auth().signIn(with: credential, completion: {authResult, error in
+            guard authResult != nil, error == nil else {
+                print("failed to log in with google crential")
+                return
+            }
+            
+            print("Successfully signed in with Google cred.")
+            NotificationCenter.default.post(name: .didLogInNotification, object: nil)
+        })
     }
     
     func sign(_ signIn: GIDSignIn!, didDisconnectWith user: GIDGoogleUser!, withError error: Error!) {
